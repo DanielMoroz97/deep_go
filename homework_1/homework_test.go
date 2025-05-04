@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,41 +9,100 @@ import (
 
 // go test -v homework_test.go
 
-func ToLittleEndian(number uint32) uint32 {
-	return (number&0x000000FF)<<24 | (number&0x0000FF00)<<8 | (number&0x00FF0000)>>8 | (number&0xFF000000)>>24
+type CircularQueue struct {
+	values      []int
+	headIndex   int
+	tailIndex   int
+	currentSize int
 }
 
-func TestСonversion(t *testing.T) {
-	tests := map[string]struct {
-		number uint32
-		result uint32
-	}{
-		"test case #1": {
-			number: 0x00000000,
-			result: 0x00000000,
-		},
-		"test case #2": {
-			number: 0xFFFFFFFF,
-			result: 0xFFFFFFFF,
-		},
-		"test case #3": {
-			number: 0x00FF00FF,
-			result: 0xFF00FF00,
-		},
-		"test case #4": {
-			number: 0x0000FFFF,
-			result: 0xFFFF0000,
-		},
-		"test case #5": {
-			number: 0x01020304,
-			result: 0x04030201,
-		},
+func NewCircularQueue(size int) CircularQueue {
+	return CircularQueue{
+		values: make([]int, size),
 	}
+}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			result := ToLittleEndian(test.number)
-			assert.Equal(t, test.result, result)
-		})
+func (q *CircularQueue) Push(value int) bool {
+	if q.Full() {
+		return false
 	}
+	q.values[q.tailIndex] = value
+	q.tailIndex = (q.tailIndex + 1) % len(q.values)
+	q.currentSize++
+	return true
+}
+
+func (q *CircularQueue) Pop() bool {
+	if q.Empty() {
+		return false
+	}
+	q.headIndex = (q.headIndex + 1) % len(q.values)
+	q.currentSize--
+	return true
+}
+
+func (q *CircularQueue) Front() int {
+	if q.Empty() {
+		return -1
+	}
+	return q.values[q.headIndex]
+}
+
+func (q *CircularQueue) Back() int {
+	if q.Empty() {
+		return -1
+	}
+	lastIndex := (q.tailIndex - 1 + len(q.values)) % len(q.values)
+	return q.values[lastIndex]
+}
+
+func (q *CircularQueue) Empty() bool {
+	return q.currentSize == 0
+}
+
+func (q *CircularQueue) Full() bool {
+	return q.currentSize == len(q.values)
+}
+
+func TestCircularQueue(t *testing.T) {
+	const queueSize = 3
+	queue := NewCircularQueue(queueSize)
+
+	assert.True(t, queue.Empty())
+	assert.False(t, queue.Full())
+
+	assert.Equal(t, -1, queue.Front())
+	assert.Equal(t, -1, queue.Back())
+	assert.False(t, queue.Pop())
+
+	assert.True(t, queue.Push(1))
+	assert.True(t, queue.Push(2))
+	assert.True(t, queue.Push(3))
+	assert.False(t, queue.Push(4))
+
+	assert.True(t, reflect.DeepEqual([]int{1, 2, 3}, queue.values))
+
+	assert.False(t, queue.Empty())
+	assert.True(t, queue.Full())
+
+	assert.Equal(t, 1, queue.Front())
+	assert.Equal(t, 3, queue.Back())
+
+	assert.True(t, queue.Pop())
+	assert.False(t, queue.Empty())
+	assert.False(t, queue.Full())
+	assert.True(t, queue.Push(4))
+
+	assert.True(t, reflect.DeepEqual([]int{4, 2, 3}, queue.values))
+
+	assert.Equal(t, 2, queue.Front())
+	assert.Equal(t, 4, queue.Back())
+
+	assert.True(t, queue.Pop())
+	assert.True(t, queue.Pop())
+	assert.True(t, queue.Pop())
+	assert.False(t, queue.Pop())
+
+	assert.True(t, queue.Empty())
+	assert.False(t, queue.Full())
 }
